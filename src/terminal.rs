@@ -16,13 +16,14 @@ use ratatui::widgets::canvas::Rectangle;
 use ratatui::widgets::Block;
 use ratatui::widgets::Borders;
 use ratatui::Terminal;
+use std::borrow::BorrowMut;
 use std::error::Error;
 use std::io;
 use std::io::Stdout;
 use std::time::Duration;
 
+use crate::gof::Board;
 use crate::gof::Cell;
-use crate::gof::CellState;
 use crate::gof::ZeroOrOneNeighbors;
 use crate::gof::COLS;
 use crate::gof::ROWS;
@@ -70,18 +71,20 @@ pub fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<(), Box<
         });
 
     let mut cells = std::array::from_fn::<_, ROWS, _>(|_| {
-        [(); COLS].map(|_| (ZeroOrOneNeighbors { alive: false }))
+        [(); COLS].map(|_| ZeroOrOneNeighbors { alive: false })
     });
     let mut board = cells
         .each_mut()
-        .map(|row| row.each_mut().map(|cell| cell as &mut dyn CellState));
-    let board = &mut board;
-    let cells = cells.map(|row| {
-        row.map(|_cell| Cell {
-            board,
-            marker: std::marker::PhantomData::<ZeroOrOneNeighbors>,
-        })
-    });
+        .map(|row| row.each_mut().map(|cell| Cell { state: cell }));
+    let mut board: Board<'_, ZeroOrOneNeighbors> =
+        board.each_mut().map(|row| row.each_mut().map(|el| el));
+
+    for i in 0..(ROWS - 1) {
+        for j in 0..(COLS - 1) {
+            let a = board[i][j].borrow_mut();
+            Cell::check((i, j), &mut board);
+        }
+    }
 
     loop {
         terminal.draw(|frame| {

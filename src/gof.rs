@@ -1,3 +1,5 @@
+use std::borrow::BorrowMut;
+
 #[derive(Debug, Clone, Copy)]
 pub struct ZeroOrOneNeighbors {
     pub alive: bool,
@@ -13,31 +15,11 @@ pub struct FourOrMoreNeighbors {
 
 pub const ROWS: usize = 11;
 pub const COLS: usize = 11;
-pub type Board<'a> = [[&'a mut dyn CellState<'a>; COLS]; ROWS];
+pub type Board<'a, S> = [[&'a mut Cell<'a, S>; COLS]; ROWS];
 
 pub trait CellState<'a> {
     fn is_alive(&self) -> bool;
     fn set_alive(&mut self, alive: bool);
-    fn count_neighbors(&self, slots: &Board<'a>, pos: (usize, usize)) -> i32 {
-        let mut count = 0;
-        let (i, j) = pos;
-        for di in -1..=1 {
-            for dj in -1..=1 {
-                let i = i as isize + di;
-                let j = j as isize + dj;
-
-                if i >= 0
-                    && i < ROWS as isize
-                    && j >= 0
-                    && j < COLS as isize
-                    && slots[i as usize][j as usize].is_alive()
-                {
-                    count += 1;
-                }
-            }
-        }
-        count
-    }
 }
 impl<'a> CellState<'a> for ZeroOrOneNeighbors {
     fn set_alive(&mut self, alive: bool) {
@@ -65,20 +47,45 @@ impl<'a> CellState<'a> for FourOrMoreNeighbors {
 }
 
 pub struct Cell<'a, S: CellState<'a>> {
-    pub board: &'a mut Board<'a>,
-    pub marker: std::marker::PhantomData<S>,
+    pub state: &'a mut S,
 }
 
-impl Cell<'_, TwoOrThreeNeighbors> {
-    fn spawn(&mut self, pos: (usize, usize)) {
+impl<'a, S> Cell<'a, S>
+where
+    S: CellState<'a>,
+{
+    fn count_neighbors(pos: (usize, usize), board: &mut Board<'a, S>) -> i32 {
+        let cell = board[pos.0][pos.1].borrow_mut();
+        let mut count = 0;
         let (i, j) = pos;
-        self.board[i][j].set_alive(true);
+        for di in -1..=1 {
+            for dj in -1..=1 {
+                let i = i as isize + di;
+                let j = j as isize + dj;
+
+                if i >= 0
+                    && i < ROWS as isize
+                    && j >= 0
+                    && j < COLS as isize
+                    && cell.state.is_alive()
+                {
+                    count += 1;
+                }
+            }
+        }
+        count
     }
-    pub fn check(&mut self, pos: (usize, usize)) {
-        let (i, j) = pos;
-        let neighbors = self.board[i][j].count_neighbors(self.board, pos);
+}
+
+impl<'a> Cell<'a, TwoOrThreeNeighbors> {
+    fn spawn(cell: &mut Cell<'a, TwoOrThreeNeighbors>) {
+        cell.state.set_alive(true);
+    }
+    pub fn check(pos: (usize, usize), board: &mut Board<'a, TwoOrThreeNeighbors>) {
+        let neighbors = Cell::count_neighbors(pos, board);
         if neighbors == 3 {
-            self.spawn(pos);
+            let cell = board[pos.0][pos.1].borrow_mut();
+            Cell::spawn(cell);
         }
     }
 }
@@ -90,15 +97,14 @@ impl<'a, S> Cell<'a, S>
 where
     S: DyingState + CellState<'a>,
 {
-    fn die(&mut self, pos: (usize, usize)) {
-        let (i, j) = pos;
-        self.board[i][j].set_alive(false);
+    fn die(cell: &mut Cell<'a, S>) {
+        cell.state.set_alive(false);
     }
-    pub fn check(&mut self, pos: (usize, usize)) {
-        let (i, j) = pos;
-        let neighbors = self.board[i][j].count_neighbors(self.board, pos);
+    pub fn check(pos: (usize, usize), board: &mut Board<'a, S>) {
+        let neighbors = Cell::count_neighbors(pos, board);
         if !(neighbors == 2 || neighbors == 3) {
-            self.die(pos);
+            let cell = board[pos.0][pos.1].borrow_mut();
+            Cell::die(cell);
         }
     }
 }
