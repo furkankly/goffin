@@ -1,10 +1,19 @@
 [package]
-name = "game-of-life"
+name = "goffin"
 version = "0.1.0"
+description = "Conway's Game of Life using the typestate pattern in Rust."
 edition = "2021"
+license = "MIT"
+readme = "README.md"
+keywords = ["game-of-life", "typestate", "ratatui", "gamedev"]
+categories = ["command-line-utilities"]
+repository = "https://github.com/furkankly/goffin"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.82"
 crossterm = { version = "0.27.0", features = ["event-stream"] }
+futures = "0.3.30"
 ratatui = "0.26.2"
+tokio = { version = "1.37.0", features = ["full"] }

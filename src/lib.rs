@@ -1,2 +1,3 @@
 pub mod gof;
-pub mod terminal;
+pub mod tui;
+pub mod ui;

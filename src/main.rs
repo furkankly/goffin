@@ -1,9 +1,8 @@
-use game_of_life::terminal;
-use std::error::Error;
+use anyhow::Result;
+use goffin::tui;
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let mut terminal = terminal::setup_terminal()?;
-    terminal::run(&mut terminal)?;
-    terminal::restore_terminal(&mut terminal)?;
+#[tokio::main]
+async fn main() -> Result<()> {
+    tui::run().await?;
     Ok(())
 }
